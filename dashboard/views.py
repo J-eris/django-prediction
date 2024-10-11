@@ -41,26 +41,21 @@ def crear_grafica_ventas_anuales(data_completa, data_analizada):
     data_completa["año"] = data_completa["fecha"].dt.year
     ventas_anuales = data_completa.groupby("año")["ventas"].sum().reset_index()
 
-    # Identificar el año de la última fecha de los datos analizados
     ultimo_año_analizado = data_analizada["fecha"].dt.year.max()
 
-    # Dividir los datos en analizados y predichos
     ventas_analizadas = ventas_anuales[ventas_anuales["año"] <= ultimo_año_analizado]
     ventas_predichas = ventas_anuales[ventas_anuales["año"] > ultimo_año_analizado]
 
     plt.figure(figsize=(10, 6))
 
-    # Graficar los datos analizados en azul
     bars_analizados = plt.bar(
         ventas_analizadas["año"], ventas_analizadas["ventas"], color="blue", width=0.6
     )
 
-    # Graficar los datos predichos en verde
     bars_predichos = plt.bar(
         ventas_predichas["año"], ventas_predichas["ventas"], color="green", width=0.6
     )
 
-    # Colocar la línea roja en el año correcto
     plt.axvline(
         x=ultimo_año_analizado,
         color="red",
@@ -75,7 +70,6 @@ def crear_grafica_ventas_anuales(data_completa, data_analizada):
     plt.legend()
     plt.tight_layout()
 
-    # Agregar etiquetas a las barras analizadas
     for bar in bars_analizados:
         yval = bar.get_height()
         plt.text(
@@ -86,7 +80,6 @@ def crear_grafica_ventas_anuales(data_completa, data_analizada):
             va="bottom",
         )
 
-    # Agregar etiquetas a las barras predichas
     for bar in bars_predichos:
         yval = bar.get_height()
         plt.text(
@@ -97,7 +90,6 @@ def crear_grafica_ventas_anuales(data_completa, data_analizada):
             va="bottom",
         )
 
-    # Guardar la gráfica en la carpeta estática
     plt.savefig("static/images/ventas_predicciones.png")
 
 
@@ -163,38 +155,30 @@ def crear_grafica_pastel_producto(predicciones_nombre, nombre):
 
 def dashboard(request):
     if request.method == "POST" and request.FILES.get("file"):
-        # Leer y preparar datos del archivo CSV subido
         file = request.FILES["file"]
         data = pd.read_csv(file)
         data["fecha"] = pd.to_datetime(data["fecha"])
         data["mes_num"] = np.arange(len(data))
 
-        # Convertir la columna 'productos' de string a lista de diccionarios
         data["productos"] = data["productos"].apply(json.loads)
     else:
-        # Leer y preparar datos de ventas desde el archivo JSON
         data = leer_datos_ventas("data/ventas.json")
         data = preparar_datos_ventas(data)
 
-    # Entrenar modelo y predecir ventas futuras
     modelo = entrenar_modelo_ventas(data)
     predicciones = predecir_ventas_futuras(modelo, data)
 
-    # Crear gráfica de ventas anuales
     data_completa = pd.concat([data[["fecha", "ventas"]], predicciones])
     crear_grafica_ventas_anuales(data_completa, data)
 
-    # Analizar producto más vendido y predecir ventas futuras
     data_json = data.to_dict("records")
     producto_mas_vendido, productos_anuales = analizar_producto_mas_vendido(data_json)
     predicciones_nombre = predecir_ventas_producto(
         modelo, producto_mas_vendido, productos_anuales
     )
 
-    # Crear gráfica de pastel del producto más vendido
     crear_grafica_pastel_producto(predicciones_nombre, producto_mas_vendido["nombre"])
 
-    # Enviar los datos de predicción al template
     return render(
         request,
         "dashboard/home.html",
